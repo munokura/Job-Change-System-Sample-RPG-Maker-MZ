@@ -35,11 +35,6 @@
  * 
  * アクター選択で、顔グラフィックとか歩行グラフィック使うのも実装したい
  * 
- * 
- * ムノクラ改変（ベース2020/9/29公開バージョン）
- *   最大行数が8だったのを6（ツクールのデフォルト選択肢表示行数）に変更
- * 
- * 
  * @command showMessage
  * @text 文章の表示/showMessage
  * @desc 選択肢と文章を同時に表示する場合は、
@@ -118,6 +113,7 @@
  * @text 選択肢のリスト/choiceList
  * @type struct<CommonEventChoiceItem>[]
  * @default []
+
  * 
  * @command memberChoice
  * @text パーティメンバーの選択
@@ -248,6 +244,7 @@
  * @type variable
  * @default 0
 */
+
 /*~struct~SimpleChoiceItem:
  * @param name
  * @text 項目名/Name
@@ -320,6 +317,9 @@
  * 指定しない場合、常に表示します。
  * @type switch
  * @default 0
+ * 
+ * 
+ * 
 */
 
 
@@ -342,442 +342,435 @@
  * 
 */
 
-(function () {
+(function(){
 
     "use strict";
-    const PLUGIN_NAME = 'Mano_ChoiceCustom';
+const PLUGIN_NAME='Mano_ChoiceCustom';
 
-    //ムノクラここから
-    Window_ChoiceList.prototype.maxLines = function () {
-        return 6;
-    };
-    //ムノクラここまで
+function evalTemp(item,expr){
+    const a =item;
+    return !!(eval(expr));
+}
 
-
-    function evalTemp(item, expr) {
-        const a = item;
-        return !!(eval(expr));
-    }
-
-    class I_ChoiceItem {
-        constructor() {
-            this._enabled = true;
+    class I_ChoiceItem{
+        constructor(){
+            this._enabled =true;
         }
         /**
          * @param {Boolean} value 
          */
-        setEnabled(value) {
-            this._enabled = this._enabled && value;
+        setEnabled(value){
+            this._enabled =this._enabled && value;
         }
 
         /**
          * @param {Number} valueId 
          */
-        setSwitchId(valueId) {
-            if (valueId > 0) {
-                this.setEnabled($gameSwitches.value(valueId));
+        setSwitchId(valueId){
+            if(valueId >0){
+                this.setEnabled( $gameSwitches.value(valueId));
             }
         }
 
         /**
          * @param {String} evalText 
          */
-        evalCondition(evalText) {
+        evalCondition(evalText){
             const item = this.item();
-            this.setEnabled(!!evalTemp(item, evalText));
+            this.setEnabled(!!evalTemp( item,evalText ));
         }
 
-        isEnabled() {
+        isEnabled(){
             return this._enabled;
         }
-        item() {
+        item(){
             return null;
         }
-        name() {
+        name(){
             return "";
         }
-        value() {
+        value(){
             return 0;
         }
 
         /**
          * @returns {Game_Actor}
          */
-        actor() {
+        actor(){
             return null;
         }
     }
 
 
-    class ChoiceItem_Actor extends I_ChoiceItem {
-        /**
-         * 
-         * @param {Game_Actor} actor 
-         */
-        constructor(actor) {
-            super();
-            this.setActor(actor)
-        }
-        /**
-         * @param {Game_Actor} actor 
-         */
-        setActor(actor) {
-            this._actor = actor;
-        }
-
-        item() {
-            return this._actor;
-        }
-        /**
-         * @returns {String}
-         */
-        name() {
-            return this._actor.name();
-        }
-
-        actor() {
-            return this._actor;
-        }
-        value() {
-            return this._actor.actorId();
-        }
-    }
-
-    class I_Choice {
-        /**
-         * @returns {string[]}
-         */
-        choiceList() {
-            return [];
-        }
-        cancelType() {
-            return -2;
-        }
-        canCancel() {
-            return true;
-        }
-        getValue(index) {
-            return 0;
-        }
-        getCanceledValue() {
-            return 0;
-        }
-        defaultIndex() {
-            return 0;
-        }
-    }
-
-    class SimpleChoiceItem extends I_ChoiceItem {
-        /**
-         * 
-         * @param {String} name 
-         * @param {Number} value 
-         */
-        constructor(name, value) {
-            super();
-            this.setName(name);
-            this.setValue(value);
-        }
-        /**
-         * @param {String} name 
-         */
-        setName(name) {
-            this._name = name;
-        }
-        name() {
-            return this._name;
-        }
-        /**
-         * @param {Number} value 
-         */
-        setValue(value) {
-            this._value = value;
-        }
-        value() {
-            return this._value;
-        }
-
-    }
-
-    class ChoiceSimple extends I_Choice {
-        constructor() {
-            super();
-            this.setList([]);
-            this.setCursorMemory(0);
-            this.setTargetVaribale(0);
-        }
-        /**
-         * @param {Number} variableId 
-         */
-        setCursorMemory(variableId) {
-            this._cursorMemoryVariable = variableId;
-        }
-        /**
-         * @param {Number} variableId 
-         */
-        setTargetVaribale(variableId) {
-            this._variableId = variableId;
-        }
-        setConditionExpr(expr) {
-            for (const iterator of this._list) {
-                iterator.evalCondition(expr);
-            }
-        }
-        /**
-         * @param {I_ChoiceItem[]} list 
-         */
-        setList(list) {
-            this._list = list;
-        }
-
-        /**
-         * @returns {string[]}
-         */
-        choiceList() {
-            return this._list.map(item => {
-                return item.name()
-            });
-        }
-
-        removeDisabledItem() {
-            const newList = this._list.filter(item => { return item.isEnabled() });
-            this.setList(newList);
-        }
-        defaultIndex() {
-            const value = $gameVariables.value(this._cursorMemoryVariable);
-            if (value > 0) {
-                return value;
-            }
-            return 0;
-        }
-        item(index) {
-            return this._list[index];
-        }
-        makeChoiceMessage() {
-            this.makeChoiceMessageEX((item) => {
-                this.saveResult(item.value());
-            });
-        }
-        /**
-         * @param {Number} value 
-         */
-        saveResult(value) {
-            $gameVariables.setValue(this._variableId, value);
-        }
-        /**
-         * @param {(item:I_ChoiceItem)=>void} func 
-         */
-        makeChoiceMessageEX(func) {
-            this.removeDisabledItem();
-            if (this._list.length > 0) {
-                $gameMessage.setChoices(
-                    this.choiceList(),
-                    this.defaultIndex(),
-                    this.cancelType()
-                );
-                $gameMessage.setChoiceCallback(n => {
-                    const item = this.item(n);
-                    if (item) {
-                        this.saveCursor(n);
-                        func(item);
-                    }
-                });
-            }
-        }
-
-        cancelType() {
-            return -2;
-        }
-        saveCursor(index) {
-            $gameVariables.setValue(this._cursorMemoryVariable, index);
-        }
-    }
-
-    function parseList(listText) {
-        /**
-         * @type {String[]}
-         */
-        const textList = JSON.parse(listText);
-        const objList = textList.map(t => { return JSON.parse(t) });
-        return objList;
-
-    }
-
-    function parseBasicArg(argText) {
-        const arg = JSON.parse(argText);
-        return {
-            variableId: Number(arg.variableId) || 0,
-            cursorSave: Number(arg.cursorSave) || 0,
-            displayMode: String(arg.displayMode),
-            enabledExpr: String(arg.enabledExpr || ""),
-        };
-    }
-
-
-    function createCusutomChoice(arg) {
-        const param = parseBasicArg(arg.basicParam);
-        const choice = new ChoiceSimple();
-        choice.setCursorMemory(param.cursorSave);
-        choice.setTargetVaribale(param.variableId);
-        return choice;
-    }
-    function customChoice(arg) {
-        const list = parseList(arg.list).map(obj => {
-            const item = new SimpleChoiceItem(obj.name, Number(obj.value));
-            item.setSwitchId(Number(obj.switchId));
-            return item;
-        });
-        const choice = createCusutomChoice(arg);
-        choice.setList(list);
-        choice.makeChoiceMessage();
-    }
-
-    /**
-     * @param {*} arg 
-     * @param {Game_Interpreter} interpreter 
-     */
-    function customChoiceCommonEvent(arg, interpreter) {
-        const choice = createCusutomChoice(arg);
-        const list = parseList(arg.list).map(obj => {
-            const item = new SimpleChoiceItem(obj.name, Number(obj.value));
-            item.setSwitchId(Number(obj.switchId));
-            return item;
-        });
-
-        choice.setList(list);
-        choice.makeChoiceMessageEX((item) => {
-            const commonEventId = item.value();
-            const eventCode = $dataCommonEvents[commonEventId];
-            if (eventCode) {
-                const eventId = interpreter.isOnCurrentMap() ? interpreter.eventId() : 0;
-                interpreter.setupChild(eventCode.list, eventId);
-            }
-        });
-    }
+class ChoiceItem_Actor extends I_ChoiceItem{
     /**
      * 
-     * @param {Game_Actor} a 
-     * @param {String} expr 
+     * @param {Game_Actor} actor 
      */
-    function evalActor(a, expr) {
-        return !!(eval(expr));
-
+    constructor(actor){
+        super();
+        this.setActor(actor)
+    }
+    /**
+     * @param {Game_Actor} actor 
+     */
+    setActor(actor){
+        this._actor =actor;
     }
 
-    function createMemberList() {
-        /**
-         * @type {Game_Actor[]}
-         */
-        const members = $gameParty.members();
-        const list = members.map((actor) => {
-            return new ChoiceItem_Actor(actor);
-        });
-        return list;
+    item(){
+        return this._actor;
+    }
+    /**
+     * @returns {String}
+     */
+    name(){
+        return this._actor.name();
     }
 
-    function memberChoice(arg) {
-        const choice = createCusutomChoice(arg);
-        const list = createMemberList();
-        choice.setList(list);
-        for (const iterator of list) {
-            iterator.setEnabled(evalActor(iterator.item(), arg.fillterConditionExpr));
+    actor(){
+        return this._actor;
+    }
+    value(){
+        return this._actor.actorId();
+    }
+}
+
+class I_Choice {
+    /**
+     * @returns {string[]}
+     */
+    choiceList(){
+        return [];
+    }
+    cancelType(){
+        return -2;
+    }
+    canCancel(){
+        return true;
+    }
+    getValue(index){
+        return 0;
+    }
+    getCanceledValue(){
+        return 0;
+    }
+    defaultIndex(){
+        return 0;
+    }
+}
+
+class SimpleChoiceItem extends I_ChoiceItem{
+    /**
+     * 
+     * @param {String} name 
+     * @param {Number} value 
+     */
+    constructor(name,value){
+        super();
+        this.setName(name);
+        this.setValue(value);
+    }
+    /**
+     * @param {String} name 
+     */
+    setName(name){
+        this._name = name;
+    }
+    name(){
+        return this._name;
+    }
+    /**
+     * @param {Number} value 
+     */
+    setValue(value){
+        this._value =value;
+    }
+    value(){
+        return this._value;
+    }
+
+}
+
+class ChoiceSimple extends I_Choice{
+    constructor(){
+        super();
+        this.setList([]);
+        this.setCursorMemory(0);
+        this.setTargetVaribale(0);
+    }
+    /**
+     * @param {Number} variableId 
+     */
+    setCursorMemory(variableId){
+        this._cursorMemoryVariable =variableId;
+    }
+    /**
+     * @param {Number} variableId 
+     */
+    setTargetVaribale(variableId){
+        this._variableId = variableId;
+    }
+    setConditionExpr(expr){
+        for (const iterator of this._list) {
+            iterator.evalCondition(expr);
         }
-        choice.makeChoiceMessage();
     }
-
-    function createActorList(listText) {
-        const list = parseList(listText).map((obj) => {
-            const actorId = Number(obj.actor);
-            const actor = $gameActors.actor(actorId);
-            if (actor) {
-                const actorChoice = new ChoiceItem_Actor(actor);
-                actorChoice.setSwitchId(Number(obj.switchId));
-                return actorChoice
-            }
-            throw new Error("存在しないアクターが指定されました");
-        });
-        return list;
-
-    }
-
-    function actorChoice(arg) {
-        const choice = createCusutomChoice(arg);
-        const list = createActorList(arg.list);
-        choice.setList(list);
-        choice.makeChoiceMessage();
-    }
-    function actorAdd(arg) {
-        const choice = createCusutomChoice(arg);
-        const list = createActorList(arg.list);
-        const members = $gameParty.members();
-        choice.setList(list.filter(item => {
-            if (item) {
-                const actor = item.actor();
-                if (actor) {
-                    return !members.includes(actor);
-                }
-            }
-            return false;
-        }));
-        choice.makeChoiceMessageEX((item) => {
-            $gameParty.addActor(item.value());
-            choice.saveResult(item.value());
-        });
-    }
-
-    function memberRemove(arg) {
-        const choice = createCusutomChoice(arg);
-        const list = createMemberList();
-        choice.setList(list);
-        choice.makeChoiceMessageEX(item => {
-            const value = item.value();
-            $gameParty.removeActor(value);
-            choice.saveResult(value);
-        });
+    /**
+     * @param {I_ChoiceItem[]} list 
+     */
+    setList(list){
+        this._list =list;
     }
 
     /**
-     * @param {Game_Interpreter} inter 
+     * @returns {string[]}
      */
-    function setWait(inter) {
-        inter.setWaitMode("message");
+    choiceList(){
+        return this._list.map(item=>{
+            return item.name()
+        });
     }
-    function showMessage(arg) {
-        $gameMessage.setFaceImage(arg.face, Number(arg.faceIndex));
-        $gameMessage.setBackground(Number(arg.background));
-        $gameMessage.setPositionType(Number(arg.positionType));
-        $gameMessage.setSpeakerName(arg.speakerName);
-        $gameMessage.add(arg.text);
+
+    removeDisabledItem(){
+        const newList =this._list.filter(item=>{return item.isEnabled()});
+        this.setList(newList );
     }
-    PluginManager.registerCommand(PLUGIN_NAME, "showMessage", showMessage);
+    defaultIndex(){
+        const value=$gameVariables.value(this._cursorMemoryVariable);
+        if(value >0){
+            return value;
+        }
+        return 0;
+    }
+    item(index){
+        return this._list[index];
+    }
+    makeChoiceMessage(){
+        this.makeChoiceMessageEX((item)=>{
+            this.saveResult(item.value());
+        });
+    }
+    /**
+     * @param {Number} value 
+     */
+    saveResult(value){
+        $gameVariables.setValue(this._variableId,value);
+    }
+    /**
+     * @param {(item:I_ChoiceItem)=>void} func 
+     */
+    makeChoiceMessageEX(func){
+        this.removeDisabledItem();
+        if(this._list.length>0){
+            $gameMessage.setChoices(
+                this.choiceList(),
+                this.defaultIndex(),
+                this.cancelType()
+            );
+            $gameMessage.setChoiceCallback( n =>{
+                const item = this.item(n);
+                if(item){
+                    this.saveCursor(n);
+                    func(item);
+                }
+            });
+        }
+    }
 
-    PluginManager.registerCommand(PLUGIN_NAME, "commonEventChoice", function (arg) {
-        customChoiceCommonEvent(arg, this);
-        setWait(this);
+    cancelType(){
+        return -2;
+    }
+    saveCursor(index){
+        $gameVariables.setValue(this._cursorMemoryVariable,index);
+    }
+}
+
+function parseList(listText){
+    /**
+     * @type {String[]}
+     */
+    const textList =JSON.parse(listText);
+    const objList = textList.map( t =>{return JSON.parse(t)});
+    return objList;
+
+}
+
+function parseBasicArg(argText){
+    const arg = JSON.parse(argText);
+    return {
+        variableId:Number(arg.variableId)||0,
+        cursorSave:Number(arg.cursorSave)||0,
+        displayMode:String(arg.displayMode) ,
+        enabledExpr:String(arg.enabledExpr||""),
+    };
+}
+
+
+function createCusutomChoice(arg){
+    const param = parseBasicArg(arg.basicParam);
+    const choice = new ChoiceSimple();
+    choice.setCursorMemory(param.cursorSave);
+    choice.setTargetVaribale(param.variableId);
+    return choice;
+}
+function customChoice(arg){
+    const list =parseList(arg.list).map(obj=>{
+        const item = new SimpleChoiceItem( obj.name,Number(obj.value) );
+        item.setSwitchId(Number(obj.switchId));
+        return item;
+    });
+    const choice = createCusutomChoice(arg);
+    choice.setList(list);
+    choice.makeChoiceMessage();
+}
+
+/**
+ * @param {*} arg 
+ * @param {Game_Interpreter} interpreter 
+ */
+function customChoiceCommonEvent(arg,interpreter){
+    const choice = createCusutomChoice(arg);
+    const list =parseList(arg.list).map(obj=>{
+        const item = new SimpleChoiceItem( obj.name,Number(obj.value) );
+        item.setSwitchId(Number(obj.switchId));
+        return item;
     });
 
-    PluginManager.registerCommand(PLUGIN_NAME, "customChoice", function (arg) {
-        customChoice(arg);
-        setWait(this);
+    choice.setList(list);
+    choice.makeChoiceMessageEX((item)=>{
+        const commonEventId = item.value();
+        const eventCode= $dataCommonEvents[commonEventId];
+        if(eventCode){
+            const eventId = interpreter.isOnCurrentMap() ? interpreter.eventId():0;
+            interpreter.setupChild(eventCode.list,eventId);
+        }
     });
+}
+/**
+ * 
+ * @param {Game_Actor} a 
+ * @param {String} expr 
+ */
+function evalActor(a,expr){
+    return !!(eval(expr));
 
-    PluginManager.registerCommand(PLUGIN_NAME, "memberChoice", function (arg) {
-        memberChoice(arg);
-        setWait(this);
-    });
-    PluginManager.registerCommand(PLUGIN_NAME, "ActorChoice", function (arg) {
-        actorChoice(arg);
-        setWait(this);
-    });
+}
 
-    PluginManager.registerCommand(PLUGIN_NAME, "ActorAdd", function (arg) {
-        actorAdd(arg);
-        setWait(this);
+function createMemberList(){
+    /**
+     * @type {Game_Actor[]}
+     */
+    const members =$gameParty.members();
+    const list = members.map( (actor)=>{
+        return new ChoiceItem_Actor(actor);
     });
+    return list;
+}
 
-    PluginManager.registerCommand(PLUGIN_NAME, "memberRemove", function (arg) {
-        memberRemove(arg);
-        setWait(this);
+function memberChoice(arg){
+    const choice = createCusutomChoice(arg);
+    const list = createMemberList();
+    choice.setList(list);
+    for (const iterator of list) {
+        iterator.setEnabled( evalActor(iterator.item(),arg.fillterConditionExpr));
+    }
+    choice.makeChoiceMessage();
+}
+
+function createActorList(listText){
+    const list = parseList(listText).map((obj)=>{
+        const actorId = Number(obj.actor);
+        const actor =$gameActors.actor(actorId);
+        if(actor){
+            const actorChoice = new ChoiceItem_Actor(actor);
+            actorChoice.setSwitchId(Number(obj.switchId));
+            return actorChoice
+        }
+        throw new Error("存在しないアクターが指定されました");
     });
+    return list;
+
+}
+
+function actorChoice(arg){
+    const choice = createCusutomChoice(arg);
+    const list =createActorList(arg.list);
+    choice.setList(list);
+    choice.makeChoiceMessage();
+}
+function actorAdd(arg){
+    const choice = createCusutomChoice(arg);
+    const list =createActorList(arg.list);
+    const members = $gameParty.members();
+    choice.setList(list.filter(item=>{
+        if(item){
+            const actor = item.actor();
+            if(actor){
+                return !members.includes(actor);
+            }
+        }
+        return false;
+    }));
+    choice.makeChoiceMessageEX((item)=>{
+        $gameParty.addActor(item.value());
+        choice.saveResult(item.value());
+});
+}
+
+function memberRemove(arg){
+    const choice = createCusutomChoice(arg);
+    const list = createMemberList();
+    choice.setList(list);
+    choice.makeChoiceMessageEX(item =>{
+        const value = item.value();
+        $gameParty.removeActor(value);
+        choice.saveResult(value);
+    });
+}
+
+/**
+ * @param {Game_Interpreter} inter 
+ */
+function setWait(inter){
+    inter.setWaitMode("message");
+}
+function showMessage(arg){
+    $gameMessage.setFaceImage(arg.face,Number(arg.faceIndex));
+    $gameMessage.setBackground(Number(arg.background));
+    $gameMessage.setPositionType(Number(arg.positionType));
+    $gameMessage.setSpeakerName(arg.speakerName);
+    $gameMessage.add(arg.text);
+}
+PluginManager.registerCommand(PLUGIN_NAME,"showMessage",showMessage);
+
+PluginManager.registerCommand(PLUGIN_NAME,"commonEventChoice",function(arg){
+    customChoiceCommonEvent(arg,this);
+    setWait(this);
+});
+
+PluginManager.registerCommand(PLUGIN_NAME,"customChoice",function(arg){
+     customChoice(arg);
+     setWait(this);
+});
+
+PluginManager.registerCommand(PLUGIN_NAME,"memberChoice",function(arg){
+    memberChoice(arg);
+    setWait(this);
+});
+PluginManager.registerCommand(PLUGIN_NAME,"ActorChoice",function(arg){
+    actorChoice(arg);
+    setWait(this);
+});
+
+PluginManager.registerCommand(PLUGIN_NAME,"ActorAdd",function(arg){
+    actorAdd(arg);
+    setWait(this);
+});
+
+PluginManager.registerCommand(PLUGIN_NAME,"memberRemove",function(arg){
+    memberRemove(arg);
+    setWait(this);
+});
 
 })();
