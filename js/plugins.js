@@ -3,5 +3,6 @@
 var $plugins =
 [
 {"name":"DarkPlasma_ChoiceHelp","status":true,"description":"選択肢にヘルプを表示する","parameters":{}},
-{"name":"Mano_ChoiceCustom","status":true,"description":"選択肢で様々なことを可能にします。","parameters":{}}
+{"name":"Mano_ChoiceCustom","status":true,"description":"選択肢で様々なことを可能にします。","parameters":{}},
+{"name":"MNKR_SelectMaxRows","status":true,"description":"選択肢ウィンドウ内の行数を指定します。","parameters":{"Max Rows":"6"}}
 ];
